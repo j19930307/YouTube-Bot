@@ -1,15 +1,11 @@
 import json
 
 import requests
-from fake_useragent import UserAgent
 from lxml import html
 
 
 def get_latest_videos(channel_handle: str, latest_video_id: str):
-    ua = UserAgent()
-    user_agent = ua.random
-    headers = {'user-agent': user_agent}
-    text = requests.get(headers=headers, url=f'https://www.youtube.com/@{channel_handle}/videos').text
+    text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/videos').text
     tree = html.fromstring(text)
     ytVariableName = 'ytInitialData'
     ytVariableDeclaration = ytVariableName + ' = '
@@ -37,10 +33,7 @@ def get_latest_videos(channel_handle: str, latest_video_id: str):
 
 
 def get_latest_shorts(channel_handle: str, latest_short_id: str):
-    ua = UserAgent()
-    user_agent = ua.random
-    headers = {'user-agent': user_agent}
-    text = requests.get(headers=headers, url=f'https://www.youtube.com/@{channel_handle}/shorts').text
+    text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/shorts').text
     tree = html.fromstring(text)
     ytVariableName = 'ytInitialData'
     ytVariableDeclaration = ytVariableName + ' = '
