@@ -32,3 +32,9 @@ class Firebase:
         doc_ref.update({
             "latest_video_id": latest_video_id
         })
+
+    def set_latest_stream_id(self, channel_handle: str, latest_stream_id: str):
+        doc_ref = self.__db.collection("YouTube").document(channel_handle)
+        doc_ref.update({
+            "latest_stream_id": latest_stream_id
+        })

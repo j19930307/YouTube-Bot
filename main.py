@@ -7,11 +7,12 @@ from firebase import Firebase
 load_dotenv()
 firebase = Firebase()
 
-print("開始抓取新影片...")
 for channel in firebase.get_channel_list():
     if channel.exists:
+        print(f"{channel.id}開始抓取新影片...")
         shorts_id = youtube_crawler.get_latest_shorts(channel.id, channel.get("latest_short_id"))
         videos_id = youtube_crawler.get_latest_videos(channel.id, channel.get("latest_video_id"))
+        streams_id = youtube_crawler.get_latest_streams(channel.id, channel.get("latest_stream_id"))
         if shorts_id:
             shorts_url = [f"https://youtube.com/shorts/{short_id}" for short_id in shorts_id]
             response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
@@ -34,3 +35,14 @@ for channel in firebase.get_channel_list():
                 print(f"影片發送到 Discord 頻道失敗")
         else:
             print(f"沒有新影片")
+        if streams_id:
+            streams_url = [f"https://www.youtube.com/live/{stream_id}" for stream_id in streams_id]
+            response = discord_bot.send_message_by_api(discord_channel_id="423829998693253122",
+                                                       content=f'{channel.id}正在直播\n{"\n".join(streams_url)}')
+            if response.status_code == 200:
+                print(f"直播發送到 Discord 頻道成功")
+                firebase.set_latest_stream_id(channel_handle=channel.id, latest_stream_id=streams_id[0])
+            else:
+                print(f"直播發送到 Discord 頻道失敗")
+        else:
+            print(f"沒有新直播")
