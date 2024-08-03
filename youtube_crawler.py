@@ -72,7 +72,9 @@ def get_latest_streams(channel_handle: str, latest_streams_id: str):
             ytVariableData = json.loads(scriptContent.split(ytVariableDeclaration)[1][:-1])
             break
 
-    tabRenderer = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs'][3]['tabRenderer']
+    tabRenderer = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs'][3].get('tabRenderer', None)
+    if not tabRenderer:
+        return []
     url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
     match = re.search(r'/([^/]+)$', url)
     if match:
