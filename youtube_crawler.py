@@ -52,12 +52,20 @@ def get_latest_shorts(channel_handle: str, latest_short_id: str):
     for content in contents:
         richItemRenderer = content.get('richItemRenderer', None)
         if richItemRenderer is not None:
-            videoRenderer = richItemRenderer['content']['reelItemRenderer']
-            video_id = videoRenderer['videoId']
-            if video_id == latest_short_id:
-                break
-            else:
-                videos_id.append(video_id)
+            reelItemRenderer = richItemRenderer['content'].get('reelItemRenderer', None)
+            shortsLockupViewModel = richItemRenderer['content'].get('shortsLockupViewModel', None)
+            if reelItemRenderer is not None:
+                video_id = reelItemRenderer['videoId']
+                if video_id == latest_short_id:
+                    break
+                else:
+                    videos_id.append(video_id)
+            elif shortsLockupViewModel is not None:
+                video_id = shortsLockupViewModel['onTap']['innertubeCommand']['reelWatchEndpoint']['videoId']
+                if video_id == latest_short_id:
+                    break
+                else:
+                    videos_id.append(video_id)
     return videos_id
 
 
