@@ -1,6 +1,9 @@
 import json
+import os
 import re
+from datetime import datetime, timezone
 
+import googleapiclient.discovery
 import requests
 from lxml import html
 
@@ -69,7 +72,7 @@ def get_latest_shorts(channel_handle: str, latest_short_id: str):
     return videos_id
 
 
-def get_latest_streams(channel_handle: str, latest_streams_id: str):
+def get_latest_streams(channel_handle: str, latest_stream_id: str):
     text = requests.get(f'https://www.youtube.com/@{channel_handle}/streams').text
     tree = html.fromstring(text)
     ytVariableName = 'ytInitialData'
@@ -94,8 +97,25 @@ def get_latest_streams(channel_handle: str, latest_streams_id: str):
                 if richItemRenderer is not None:
                     videoRenderer = richItemRenderer['content']['videoRenderer']
                     video_id = videoRenderer['videoId']
-                    if latest_streams_id and (video_id == latest_streams_id):
+                    if latest_stream_id and (video_id == latest_stream_id):
                         break
                     else:
                         videos_id.append(video_id)
             return videos_id
+    return []
+
+
+def get_video_published_at(video_id: str):
+    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.environ["YOUTUBE_DATA_API_KEY"])
+    request = youtube.videos().list(
+        part="snippet",
+        id=video_id
+    )
+    response = request.execute()
+
+    if response['items']:
+        published_at = response['items'][0]['snippet']['publishedAt']
+        # 轉換成 datetime 對象
+        return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    else:
+        return None
