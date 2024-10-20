@@ -76,7 +76,8 @@ def fetch_new_streams(channel):
     for index, stream_id in enumerate(streams_id):
         if index == 0:
             published_at = youtube_crawler.get_video_published_at(video_id=stream_id)
-            if published_at > latest_stream.get("published_at"):
+            latest_stream_published_at = latest_stream.get("published_at")
+            if latest_stream_published_at is None or published_at > latest_stream_published_at:
                 filtered_streams_id.append(stream_id)
                 new_published_at = published_at
             else:

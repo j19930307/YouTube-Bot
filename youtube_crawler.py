@@ -96,11 +96,12 @@ def get_latest_streams(channel_handle: str, latest_stream_id: str):
                 richItemRenderer = content.get('richItemRenderer', None)
                 if richItemRenderer is not None:
                     videoRenderer = richItemRenderer['content']['videoRenderer']
-                    video_id = videoRenderer['videoId']
-                    if latest_stream_id and (video_id == latest_stream_id):
-                        break
-                    else:
-                        videos_id.append(video_id)
+                    if videoRenderer.get('upcomingEventData') is None:
+                        video_id = videoRenderer['videoId']
+                        if latest_stream_id and (video_id == latest_stream_id):
+                            break
+                        else:
+                            videos_id.append(video_id)
             return videos_id
     return []
 
@@ -114,8 +115,11 @@ def get_video_published_at(video_id: str):
     response = request.execute()
 
     if response['items']:
-        published_at = response['items'][0]['snippet']['publishedAt']
-        # 轉換成 datetime 對象
-        return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        snippet = response['items'][0]['snippet']
+        live_broadcast_content = snippet['liveBroadcastContent']
+        if live_broadcast_content == 'live' or live_broadcast_content == 'none':
+            published_at = snippet['publishedAt']
+            # 轉換成 datetime 對象
+            return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     else:
         return None
