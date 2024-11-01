@@ -15,16 +15,10 @@ def fetch_new_shorts(channel):
     filtered_shorts_id = []
     new_published_at = None
     for index, short_id in enumerate(shorts_id):
-        if index == 0:
-            published_at = youtube_crawler.get_video_published_at(video_id=short_id)
-            if published_at > latest_short.get("published_at"):
-                filtered_shorts_id.append(short_id)
-                new_published_at = published_at
-            else:
-                break
-        else:
+        published_at = youtube_crawler.get_video_published_at(video_id=short_id)
+        if published_at > latest_short.get("published_at"):
             filtered_shorts_id.append(short_id)
-
+            new_published_at = published_at
     if filtered_shorts_id:
         shorts_url = [f"https://youtube.com/shorts/{id}" for id in filtered_shorts_id]
         response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
@@ -45,15 +39,10 @@ def fetch_new_videos(channel):
     filtered_videos_id = []
     new_published_at = None
     for index, video_id in enumerate(videos_id):
-        if index == 0:
-            published_at = youtube_crawler.get_video_published_at(video_id=video_id)
-            if published_at > latest_video.get("published_at"):
-                filtered_videos_id.append(video_id)
-                new_published_at = published_at
-            else:
-                break
-        else:
+        published_at = youtube_crawler.get_video_published_at(video_id=video_id)
+        if published_at > latest_video.get("published_at"):
             filtered_videos_id.append(video_id)
+            new_published_at = published_at
     if filtered_videos_id:
         videos_url = [f"https://youtu.be/{id}" for id in filtered_videos_id]
         response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
@@ -74,16 +63,10 @@ def fetch_new_streams(channel):
     filtered_streams_id = []
     new_published_at = None
     for index, stream_id in enumerate(streams_id):
-        if index == 0:
-            published_at = youtube_crawler.get_video_published_at(video_id=stream_id)
-            latest_stream_published_at = latest_stream.get("published_at")
-            if latest_stream_published_at is None or published_at > latest_stream_published_at:
-                filtered_streams_id.append(stream_id)
-                new_published_at = published_at
-            else:
-                break
-        else:
+        published_at = youtube_crawler.get_video_published_at(video_id=stream_id)
+        if published_at > latest_stream.get("published_at"):
             filtered_streams_id.append(stream_id)
+            new_published_at = published_at
     if filtered_streams_id:
         streams_url = [f"https://www.youtube.com/live/{id}" for id in filtered_streams_id]
         response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
