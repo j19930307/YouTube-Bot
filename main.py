@@ -16,7 +16,7 @@ def fetch_new_shorts(channel):
     new_published_at = None
     for index, short_id in enumerate(shorts_id):
         published_at = youtube_crawler.get_video_published_at(video_id=short_id)
-        if published_at > latest_short.get("published_at"):
+        if published_at and published_at > latest_short.get("published_at"):
             filtered_shorts_id.append(short_id)
             new_published_at = published_at
     if filtered_shorts_id:
@@ -40,7 +40,7 @@ def fetch_new_videos(channel):
     new_published_at = None
     for index, video_id in enumerate(videos_id):
         published_at = youtube_crawler.get_video_published_at(video_id=video_id)
-        if published_at > latest_video.get("published_at"):
+        if published_at and published_at > latest_video.get("published_at"):
             filtered_videos_id.append(video_id)
             new_published_at = published_at
     if filtered_videos_id:
@@ -64,7 +64,7 @@ def fetch_new_streams(channel):
     new_published_at = None
     for index, stream_id in enumerate(streams_id):
         published_at = youtube_crawler.get_video_published_at(video_id=stream_id)
-        if published_at > latest_stream.get("published_at"):
+        if published_at and published_at > latest_stream.get("published_at"):
             filtered_streams_id.append(stream_id)
             new_published_at = published_at
     if filtered_streams_id:
