@@ -117,7 +117,9 @@ def get_video_published_at(video_id: str):
     if response['items']:
         snippet = response['items'][0]['snippet']
         live_broadcast_content = snippet['liveBroadcastContent']
-        if live_broadcast_content == 'live' or live_broadcast_content == 'none':
+        if live_broadcast_content == 'live':
+            return datetime.now().replace(tzinfo=timezone.utc)
+        elif live_broadcast_content == 'none':
             published_at = snippet['publishedAt']
             # 轉換成 datetime 對象
             return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
