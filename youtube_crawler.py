@@ -8,7 +8,7 @@ import requests
 from lxml import html
 
 
-def get_latest_videos(channel_handle: str, latest_video_id: str):
+def get_latest_video_ids(channel_handle: str, latest_video_id: str):
     videos_id = []
     text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/videos').text
     tree = html.fromstring(text)
@@ -41,7 +41,7 @@ def get_latest_videos(channel_handle: str, latest_video_id: str):
     return videos_id
 
 
-def get_latest_shorts(channel_handle: str, latest_short_id: str):
+def get_latest_short_ids(channel_handle: str, latest_short_id: str):
     videos_id = []
     text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/shorts').text
     tree = html.fromstring(text)
@@ -82,7 +82,7 @@ def get_latest_shorts(channel_handle: str, latest_short_id: str):
     return videos_id
 
 
-def get_latest_streams(channel_handle: str, latest_stream_id: str):
+def get_latest_stream_ids(channel_handle: str, latest_stream_id: str):
     videos_id = []
     text = requests.get(f'https://www.youtube.com/@{channel_handle}/streams').text
     tree = html.fromstring(text)
@@ -116,22 +116,19 @@ def get_latest_streams(channel_handle: str, latest_stream_id: str):
     return videos_id
 
 
-def get_video_published_at(video_id: str):
+def get_videos_info(video_ids: list):
     youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.environ["YOUTUBE_DATA_API_KEY"])
-    request = youtube.videos().list(
-        part="snippet",
-        id=video_id
-    )
+    request = youtube.videos().list(part="snippet", id=",".join(video_ids))
     response = request.execute()
+    return response['items']
 
-    if response['items']:
-        snippet = response['items'][0]['snippet']
-        live_broadcast_content = snippet['liveBroadcastContent']
-        if live_broadcast_content == 'live':
-            return datetime.now().replace(tzinfo=timezone.utc)
-        elif live_broadcast_content == 'none':
-            published_at = snippet['publishedAt']
-            # 轉換成 datetime 對象
-            return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    else:
-        return None
+
+def get_video_published_at(item):
+    snippet = item['snippet']
+    live_broadcast_content = snippet['liveBroadcastContent']
+    if live_broadcast_content == 'live':
+        return datetime.now().replace(tzinfo=timezone.utc)
+    elif live_broadcast_content == 'none':
+        published_at = snippet['publishedAt']
+        # 轉換成 datetime 對象
+        return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)

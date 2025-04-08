@@ -1,6 +1,6 @@
 requests==2.32.3
-lxml==5.2.2
-firebase-admin==6.5.0
-python-dotenv==1.0.1
-py-cord==2.5.0
-google-api-python-client==2.138.0
+lxml==5.3.2
+firebase-admin==6.7.0
+python-dotenv==1.1.0
+py-cord==2.6.1
+google-api-python-client==2.166.0
