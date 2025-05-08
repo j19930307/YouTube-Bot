@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 import googleapiclient.discovery
 import requests
+from dotenv import load_dotenv
 from lxml import html
 
 
@@ -128,7 +129,11 @@ def get_video_published_at(item):
     live_broadcast_content = snippet['liveBroadcastContent']
     if live_broadcast_content == 'live':
         return datetime.now().replace(tzinfo=timezone.utc)
-    elif live_broadcast_content == 'none':
+    else:
         published_at = snippet['publishedAt']
         # 轉換成 datetime 對象
         return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+load_dotenv()
+print(get_videos_info(['ia2Ph61bYzc']))
