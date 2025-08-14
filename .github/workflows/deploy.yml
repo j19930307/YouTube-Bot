@@ -1,0 +1,59 @@
+name: GCE Deployment on Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  GCP_PROJECT_ID: "bot-447f2"
+  GCE_INSTANCE_NAME: "youtube-notifications"
+  GCE_INSTANCE_ZONE: "us-west1-b"
+
+jobs:
+  deploy-to-gce:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 部署程式碼到 GCE 執行個體
+      - name: Deploy code to GCE instance
+        run: |
+          gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="sudo rm -rf ~/my-app/* && exit"
+
+          gcloud compute scp ./* ${{ env.GCE_INSTANCE_NAME }}:~/my-app/ \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --recurse
+
+      # --- 新增的步驟：安裝 Python 依賴函式庫 ---
+      - name: Install Python dependencies
+        run: |
+          gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="cd ~/my-app && python3 -m pip install -r requirements.txt"
+
+      # 新增 Crontab 任務，讓 main.py 每 5 分鐘執行一次
+      - name: Set up cron job
+        run: |
+          gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="echo '*/5 * * * * cd ~/my-app && /usr/bin/python3 main.py >> ~/cron.log 2>&1' | crontab -"
