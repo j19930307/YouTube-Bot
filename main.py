@@ -53,7 +53,7 @@ for channel in firebase.get_channel_list():
         ]
 
         if filtered_short_info:
-            videos_url = [f"https://youtu.be/{info.get("id")}" for info in filtered_short_info]
+            videos_url = [f"https://youtu.be/{info.get('id')}" for info in filtered_short_info]
             response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
                                                        content=f'{channel_name}上傳了短影片\n{"\n".join(videos_url)}')
             if response.status_code == 200:
