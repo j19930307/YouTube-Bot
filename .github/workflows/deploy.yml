@@ -1,3 +1,4 @@
+
 name: GCE Deployment on Push
 
 on:
@@ -29,7 +30,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # 部署程式碼到 GCE 執行個體
       - name: Deploy code to GCE instance
         run: |
           gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
@@ -42,18 +42,25 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --recurse
 
-      # --- 新增的步驟：安裝 Python 依賴函式庫 ---
-      - name: Install Python dependencies
+      # --- 修改後的步驟：使用虛擬環境來安裝和執行 ---
+      - name: Set up Python virtual environment and dependencies
         run: |
+          # 建立虛擬環境，如果 venv 資料夾不存在的話
           gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="cd ~/my-app && python3 -m pip install -r requirements.txt"
+            --command="cd ~/my-app && [ -d venv ] || python3 -m venv venv"
 
-      # 新增 Crontab 任務，讓 main.py 每 5 分鐘執行一次
-      - name: Set up cron job
-        run: |
+          # 進入專案目錄，並使用虛擬環境中的 pip 安裝依賴
           gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="echo '*/5 * * * * cd ~/my-app && /usr/bin/python3 main.py >> ~/cron.log 2>&1' | crontab -"
+            --command="cd ~/my-app && ./venv/bin/pip install -r requirements.txt"
+
+      - name: Set up cron job to run with virtual environment
+        run: |
+          # Crontab 任務也需要使用虛擬環境中的 Python 執行
+          gcloud compute ssh ${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="echo '*/5 * * * * cd ~/my-app && ./venv/bin/python main.py >> ~/cron.log 2>&1' | crontab -"
