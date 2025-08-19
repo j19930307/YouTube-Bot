@@ -1,0 +1,76 @@
+name: GCE Deployment on Push
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  GCP_PROJECT_ID: "bot-447f2"
+  GCE_INSTANCE_NAME: "youtube-notifications"
+  GCE_INSTANCE_ZONE: "us-west1-b"
+  GCE_USERNAME: "j19930307"
+
+jobs:
+  deploy-to-gce:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # --- 修改過的部署步驟：更可靠的檔案同步 ---
+      - name: Deploy code to GCE instance
+        run: |
+          # Step 1: 透過 SSH 確保專案目錄和虛擬環境目錄都存在
+          gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="mkdir -p ~/my-app/ && rm -rf ~/my-app/*"
+            
+          # Step 2: 使用 gcloud scp 複製檔案，明確指定複製所有檔案和資料夾
+          # 注意：此處的 ./ 是指 GitHub Actions Runner 的工作目錄
+          gcloud compute scp ./* ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }}:~/my-app/ \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --recurse
+
+      # 安裝 python3-venv 套件
+      - name: Install venv package
+        run: |
+          gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="sudo apt-get update && sudo apt-get install -y python3-venv"
+
+      # 設定 Python 虛擬環境和依賴
+      - name: Set up Python virtual environment and dependencies
+        run: |
+          gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="cd ~/my-app && [ -d venv ] || python3 -m venv venv"
+
+          gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="cd ~/my-app && ./venv/bin/pip install -r requirements.txt"
+
+      # 設定 Crontab 任務
+      - name: Set up cron job to run with virtual environment
+        run: |
+          gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
+            --zone=${{ env.GCE_INSTANCE_ZONE }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --command="echo '1-59/5 * * * * cd ~/my-app && ./venv/bin/python main.py >> ~/cron.log 2>&1' | crontab -"

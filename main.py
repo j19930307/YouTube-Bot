@@ -53,9 +53,11 @@ for channel in firebase.get_channel_list():
         ]
 
         if filtered_short_info:
-            videos_url = [f"https://youtu.be/{info.get("id")}" for info in filtered_short_info]
+            videos_url = [f"https://youtu.be/{info.get('id')}" for info in filtered_short_info]
+            videos_joined = "\n".join(videos_url)
+            content = f'{channel_name}上傳了短影片\n{videos_joined}'
             response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
-                                                       content=f'{channel_name}上傳了短影片\n{"\n".join(videos_url)}')
+                                                       content=content)
             if response.status_code == 200:
                 print(f"短影片發送到 Discord 頻道成功")
                 firebase.set_latest_short_info(channel_handle=channel.id, short_id=filtered_short_info[0].get("id"),
@@ -78,8 +80,10 @@ for channel in firebase.get_channel_list():
 
         if filtered_video_info:
             videos_url = [f"https://youtu.be/{info.get('id')}" for info in filtered_video_info]
+            videos_joined = "\n".join(videos_url)
+            content = f'{channel_name}上傳了影片\n{videos_joined}'
             response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
-                                                       content=f'{channel_name}上傳了影片\n{"\n".join(videos_url)}')
+                                                       content=content)
             if response.status_code == 200:
                 print(f"影片發送到 Discord 頻道成功")
                 firebase.set_latest_video_info(channel_handle=channel.id, video_id=filtered_video_info[0].get("id"),
@@ -102,8 +106,10 @@ for channel in firebase.get_channel_list():
 
         if filtered_stream_info:
             videos_url = [f"https://youtu.be/{info.get('id')}" for info in filtered_stream_info]
+            videos_joined = "\n".join(videos_url)
+            content = f'{channel_name}直播中\n{videos_joined}'
             response = discord_bot.send_message_by_api(discord_channel_id=channel.get("discord_channel_id"),
-                                                       content=f'{channel_name}上傳了直播\n{"\n".join(videos_url)}')
+                                                       content=content)
             if response.status_code == 200:
                 print(f"直播發送到 Discord 頻道成功")
                 firebase.set_latest_stream_info(channel_handle=channel.id, stream_id=filtered_stream_info[0].get("id"),
