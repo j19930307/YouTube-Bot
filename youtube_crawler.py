@@ -1,148 +1,219 @@
 import json
 import os
-import re
 from datetime import datetime, timezone
+from typing import Optional
 
-import googleapiclient.discovery
-import requests
-from dotenv import load_dotenv
+import aiohttp
 from lxml import html
 
 
-def get_latest_video_ids(channel_handle: str, latest_video_id: str):
-    videos_id = []
-    try:
-        text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/videos').text
-        tree = html.fromstring(text)
-        ytVariableName = 'ytInitialData'
-        ytVariableDeclaration = ytVariableName + ' = '
-        for script in tree.xpath('//script'):
-            scriptContent = script.text_content()
-            if ytVariableDeclaration in scriptContent:
-                ytVariableData = json.loads(scriptContent.split(ytVariableDeclaration)[1][:-1])
-                break
+class YouTubeCrawler:
+    """YouTube 頻道爬蟲類，用於獲取頻道的影片、短影片和直播資訊"""
 
-        tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+    def __init__(self, channel_handle: str, api_key: Optional[str] = None,
+                 session: Optional[aiohttp.ClientSession] = None):
+        self.channel_handle = channel_handle
+        self.api_key = api_key or os.environ.get("YOUTUBE_DATA_API_KEY")
+        self.session = session
 
-        for i in range(len(tabs)):
-            tabRemenderer = tabs[i].get('tabRenderer')
-            if tabRemenderer is None: break
-            # 從 tab 的 url 判斷哪一個是影片 (videos)
-            url = tabRemenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-            if url.rsplit("/", 1)[-1] == "videos":
-                contents = tabs[i]['tabRenderer']['content']['richGridRenderer']['contents']
-                for content in contents:
-                    richItemRenderer = content.get('richItemRenderer', None)
-                    if richItemRenderer is not None:
+    async def _fetch_text(self, url: str) -> str:
+        async with self.session.get(url) as response:
+            return await response.text()
+
+    # ========= 抓影片 ID =========
+
+    async def get_latest_video_ids(self, latest_video_id: str):
+        videos_id = []
+        try:
+            text = await self._fetch_text(
+                f'https://www.youtube.com/@{self.channel_handle}/videos'
+            )
+
+            tree = html.fromstring(text)
+            ytVariableDeclaration = 'ytInitialData = '
+
+            ytVariableData = None
+            for script in tree.xpath('//script'):
+                scriptContent = script.text_content()
+                if ytVariableDeclaration in scriptContent:
+                    ytVariableData = json.loads(
+                        scriptContent.split(ytVariableDeclaration)[1][:-1]
+                    )
+                    break
+
+            if not ytVariableData:
+                return videos_id
+
+            tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+
+            for tab in tabs:
+                tabRenderer = tab.get('tabRenderer')
+                if not tabRenderer:
+                    continue
+
+                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
+                if url.endswith("videos"):
+                    contents = tabRenderer['content']['richGridRenderer']['contents']
+                    for content in contents:
+                        richItemRenderer = content.get('richItemRenderer')
+                        if not richItemRenderer:
+                            continue
+
                         videoRenderer = richItemRenderer['content']['videoRenderer']
                         video_id = videoRenderer['videoId']
+
                         if video_id == latest_video_id:
                             break
-                        else:
-                            videos_id.append(video_id)
-        return videos_id
-    except Exception as e:
-        print(str(e))
-        return videos_id
+                        videos_id.append(video_id)
 
+            return videos_id
 
-def get_latest_short_ids(channel_handle: str, latest_short_id: str):
-    videos_id = []
-    try:
-        text = requests.get(url=f'https://www.youtube.com/@{channel_handle}/shorts').text
-        tree = html.fromstring(text)
-        ytVariableName = 'ytInitialData'
-        ytVariableDeclaration = ytVariableName + ' = '
-        for script in tree.xpath('//script'):
-            scriptContent = script.text_content()
-            if ytVariableDeclaration in scriptContent:
-                ytVariableData = json.loads(scriptContent.split(ytVariableDeclaration)[1][:-1])
-                break
+        except Exception as e:
+            print(e)
+            return videos_id
 
-        tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+    async def get_latest_short_ids(self, latest_short_id: str):
+        videos_id = []
+        try:
+            text = await self._fetch_text(
+                f'https://www.youtube.com/@{self.channel_handle}/shorts'
+            )
 
-        for i in range(len(tabs)):
-            tabRemenderer = tabs[i].get('tabRenderer')
-            if tabRemenderer is None: break
-            # 從 tab 的 url 判斷哪一個是短影片 (shorts)
-            url = tabRemenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-            if url.rsplit("/", 1)[-1] == "shorts":
-                contents = tabs[i]['tabRenderer']['content']['richGridRenderer']['contents']
-                for content in contents:
-                    richItemRenderer = content.get('richItemRenderer', None)
-                    if richItemRenderer is not None:
-                        reelItemRenderer = richItemRenderer['content'].get('reelItemRenderer', None)
-                        shortsLockupViewModel = richItemRenderer['content'].get('shortsLockupViewModel', None)
-                        if reelItemRenderer is not None:
+            tree = html.fromstring(text)
+            ytVariableDeclaration = 'ytInitialData = '
+
+            ytVariableData = None
+            for script in tree.xpath('//script'):
+                scriptContent = script.text_content()
+                if ytVariableDeclaration in scriptContent:
+                    ytVariableData = json.loads(
+                        scriptContent.split(ytVariableDeclaration)[1][:-1]
+                    )
+                    break
+
+            if not ytVariableData:
+                return videos_id
+
+            tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+
+            for tab in tabs:
+                tabRenderer = tab.get('tabRenderer')
+                if not tabRenderer:
+                    continue
+
+                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
+                if url.endswith("shorts"):
+                    contents = tabRenderer['content']['richGridRenderer']['contents']
+
+                    for content in contents:
+                        richItemRenderer = content.get('richItemRenderer')
+                        if not richItemRenderer:
+                            continue
+
+                        reelItemRenderer = richItemRenderer['content'].get('reelItemRenderer')
+                        shortsLockupViewModel = richItemRenderer['content'].get('shortsLockupViewModel')
+
+                        if reelItemRenderer:
                             video_id = reelItemRenderer['videoId']
-                            if video_id == latest_short_id:
-                                break
-                            else:
-                                videos_id.append(video_id)
-                        elif shortsLockupViewModel is not None:
+                        elif shortsLockupViewModel:
                             video_id = shortsLockupViewModel['onTap']['innertubeCommand']['reelWatchEndpoint'][
                                 'videoId']
-                            if video_id == latest_short_id:
-                                break
-                            else:
-                                videos_id.append(video_id)
-        return videos_id
-    except Exception as e:
-        print(str(e))
-        return videos_id
+                        else:
+                            continue
 
+                        if video_id == latest_short_id:
+                            break
 
-def get_latest_stream_ids(channel_handle: str, latest_stream_id: str):
-    videos_id = []
-    try:
-        text = requests.get(f'https://www.youtube.com/@{channel_handle}/streams').text
-        tree = html.fromstring(text)
-        ytVariableName = 'ytInitialData'
-        ytVariableDeclaration = ytVariableName + ' = '
-        for script in tree.xpath('//script'):
-            scriptContent = script.text_content()
-            if ytVariableDeclaration in scriptContent:
-                ytVariableData = json.loads(scriptContent.split(ytVariableDeclaration)[1][:-1])
-                break
+                        videos_id.append(video_id)
 
-        tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+            return videos_id
 
-        for i in range(len(tabs)):
-            tabRemenderer = tabs[i].get('tabRenderer')
-            if tabRemenderer is None: break
-            # 從 tab 的 url 判斷哪一個是直播 (streams)
-            url = tabRemenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-            if url.rsplit("/", 1)[-1] == "streams":
-                contents = tabs[i]['tabRenderer']['content']['richGridRenderer']['contents']
-                for content in contents:
-                    richItemRenderer = content.get('richItemRenderer', None)
-                    if richItemRenderer is not None:
+        except Exception as e:
+            print(e)
+            return videos_id
+
+    async def get_latest_stream_ids(self, latest_stream_id: str):
+        videos_id = []
+        try:
+            text = await self._fetch_text(
+                f'https://www.youtube.com/@{self.channel_handle}/streams'
+            )
+
+            tree = html.fromstring(text)
+            ytVariableDeclaration = 'ytInitialData = '
+
+            ytVariableData = None
+            for script in tree.xpath('//script'):
+                scriptContent = script.text_content()
+                if ytVariableDeclaration in scriptContent:
+                    ytVariableData = json.loads(
+                        scriptContent.split(ytVariableDeclaration)[1][:-1]
+                    )
+                    break
+
+            if not ytVariableData:
+                return videos_id
+
+            tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
+
+            for tab in tabs:
+                tabRenderer = tab.get('tabRenderer')
+                if not tabRenderer:
+                    continue
+
+                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
+                if url.endswith("streams"):
+                    contents = tabRenderer['content']['richGridRenderer']['contents']
+
+                    for content in contents:
+                        richItemRenderer = content.get('richItemRenderer')
+                        if not richItemRenderer:
+                            continue
+
                         videoRenderer = richItemRenderer['content']['videoRenderer']
-                        if videoRenderer.get('upcomingEventData') is None:
-                            video_id = videoRenderer['videoId']
-                            if latest_stream_id and (video_id == latest_stream_id):
-                                break
-                            else:
-                                videos_id.append(video_id)
-        return videos_id
-    except Exception as e:
-        print(str(e))
-        return videos_id
 
+                        if videoRenderer.get('upcomingEventData'):
+                            continue
 
-def get_videos_info(video_ids: list):
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=os.environ["YOUTUBE_DATA_API_KEY"])
-    request = youtube.videos().list(part="snippet", id=",".join(video_ids))
-    response = request.execute()
-    return response['items']
+                        video_id = videoRenderer['videoId']
 
+                        if latest_stream_id and video_id == latest_stream_id:
+                            break
 
-def get_video_published_at(item):
-    snippet = item['snippet']
-    live_broadcast_content = snippet['liveBroadcastContent']
-    if live_broadcast_content == 'live':
-        return datetime.now().replace(tzinfo=timezone.utc)
-    else:
+                        videos_id.append(video_id)
+
+            return videos_id
+
+        except Exception as e:
+            print(e)
+            return videos_id
+
+    # ========= 影片詳細資訊 =========
+
+    async def get_videos_info(self, video_ids: list):
+
+        url = "https://www.googleapis.com/youtube/v3/videos"
+        params = {
+            "part": "snippet",
+            "id": ",".join(video_ids),
+            "key": self.api_key
+        }
+
+        async with self.session.get(url, params=params) as response:
+            data = await response.json()
+            return data.get("items", [])
+
+    # ========= 發佈時間處理 =========
+
+    def get_video_published_at(self, item):
+        snippet = item['snippet']
+        live_broadcast_content = snippet['liveBroadcastContent']
+
+        if live_broadcast_content == 'live':
+            return datetime.now(timezone.utc)
+
         published_at = snippet['publishedAt']
-        # 轉換成 datetime 對象
-        return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(
+            published_at,
+            "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=timezone.utc)

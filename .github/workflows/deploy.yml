@@ -73,4 +73,4 @@ jobs:
           gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="echo '1-59/5 * * * * cd ~/my-app && ./venv/bin/python main.py >> ~/cron.log 2>&1' | crontab -"
+            --command="echo '1-59/3 * * * * cd ~/my-app && timeout 170 ./venv/bin/python main.py >> ~/cron.log 2>&1' | crontab -"
