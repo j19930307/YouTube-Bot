@@ -59,8 +59,16 @@ class YouTubeCrawler:
                         if not richItemRenderer:
                             continue
 
-                        videoRenderer = richItemRenderer['content']['videoRenderer']
-                        video_id = videoRenderer['videoId']
+                        content_data = richItemRenderer.get('content', {})
+                        video_id = None
+
+                        if 'videoRenderer' in content_data:
+                            video_id = content_data['videoRenderer']['videoId']
+                        elif 'lockupViewModel' in content_data:
+                            video_id = content_data['lockupViewModel'].get('contentId')
+
+                        if not video_id:
+                            continue
 
                         if video_id == latest_video_id:
                             break
@@ -170,12 +178,20 @@ class YouTubeCrawler:
                         if not richItemRenderer:
                             continue
 
-                        videoRenderer = richItemRenderer['content']['videoRenderer']
+                        content_data = richItemRenderer.get('content', {})
+                        video_id = None
 
-                        if videoRenderer.get('upcomingEventData'):
+                        if 'videoRenderer' in content_data:
+                            video_renderer = content_data['videoRenderer']
+                            if video_renderer.get('upcomingEventData'):
+                                continue
+                            video_id = video_renderer['videoId']
+                        elif 'lockupViewModel' in content_data:
+                            # Assuming lockupViewModel doesn't show upcoming events on this tab
+                            video_id = content_data['lockupViewModel'].get('contentId')
+
+                        if not video_id:
                             continue
-
-                        video_id = videoRenderer['videoId']
 
                         if latest_stream_id and video_id == latest_stream_id:
                             break
