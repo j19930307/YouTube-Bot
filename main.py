@@ -166,7 +166,7 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
         ]
 
         if filtered_stream_info:
-            videos_url = [f"https://youtu.be/{info.get('id')}" for info in filtered_stream_info]
+            videos_url = [f"https://www.youtube.com/live/{info.get('id')}" for info in filtered_stream_info]
             videos_joined = "\n".join(videos_url)
             content = f'{channel_name}直播中\n{videos_joined}'
             response = discord_bot.send_message(discord_channel_id=channel.get("discord_channel_id"),
