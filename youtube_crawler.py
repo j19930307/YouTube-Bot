@@ -24,6 +24,7 @@ class YouTubeCrawler:
 
     async def get_latest_video_ids(self, latest_video_id: str):
         videos_id = []
+        found = False
         try:
             text = await self._fetch_text(
                 f'https://www.youtube.com/@{self.channel_handle}/videos'
@@ -42,7 +43,7 @@ class YouTubeCrawler:
                     break
 
             if not ytVariableData:
-                return videos_id
+                return videos_id, found
 
             tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
 
@@ -70,18 +71,20 @@ class YouTubeCrawler:
                         if not video_id:
                             continue
 
-                        if video_id == latest_video_id:
+                        if latest_video_id and video_id == latest_video_id:
+                            found = True
                             break
                         videos_id.append(video_id)
 
-            return videos_id
+            return videos_id, found
 
         except Exception as e:
             print(e)
-            return videos_id
+            return videos_id, found
 
     async def get_latest_short_ids(self, latest_short_id: str):
         videos_id = []
+        found = False
         try:
             text = await self._fetch_text(
                 f'https://www.youtube.com/@{self.channel_handle}/shorts'
@@ -100,7 +103,7 @@ class YouTubeCrawler:
                     break
 
             if not ytVariableData:
-                return videos_id
+                return videos_id, found
 
             tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
 
@@ -129,19 +132,21 @@ class YouTubeCrawler:
                         else:
                             continue
 
-                        if video_id == latest_short_id:
+                        if latest_short_id and video_id == latest_short_id:
+                            found = True
                             break
 
                         videos_id.append(video_id)
 
-            return videos_id
+            return videos_id, found
 
         except Exception as e:
             print(e)
-            return videos_id
+            return videos_id, found
 
     async def get_latest_stream_ids(self, latest_stream_id: str):
         videos_id = []
+        found = False
         try:
             text = await self._fetch_text(
                 f'https://www.youtube.com/@{self.channel_handle}/streams'
@@ -160,7 +165,7 @@ class YouTubeCrawler:
                     break
 
             if not ytVariableData:
-                return videos_id
+                return videos_id, found
 
             tabs = ytVariableData['contents']['twoColumnBrowseResultsRenderer']['tabs']
 
@@ -194,15 +199,16 @@ class YouTubeCrawler:
                             continue
 
                         if latest_stream_id and video_id == latest_stream_id:
+                            found = True
                             break
 
                         videos_id.append(video_id)
 
-            return videos_id
+            return videos_id, found
 
         except Exception as e:
             print(e)
-            return videos_id
+            return videos_id, found
 
     # ========= 影片詳細資訊 =========
 

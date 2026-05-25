@@ -63,17 +63,17 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
         # ========= 抓 ID =========
 
         latest_short = channel.get("latest_short")
-        short_ids = await youtube_crawler.get_latest_short_ids(
+        short_ids, short_id_found = await youtube_crawler.get_latest_short_ids(
             latest_short_id=latest_short.get("id")
         )
 
         latest_video = channel.get("latest_video")
-        video_ids = await youtube_crawler.get_latest_video_ids(
+        video_ids, video_id_found = await youtube_crawler.get_latest_video_ids(
             latest_video_id=latest_video.get("id")
         )
 
         latest_stream = channel.get("latest_stream")
-        stream_ids = await youtube_crawler.get_latest_stream_ids(
+        stream_ids, stream_id_found = await youtube_crawler.get_latest_stream_ids(
             latest_stream_id=latest_stream.get("id")
         )
 
@@ -100,6 +100,7 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             {**info, "published_at": youtube_crawler.get_video_published_at(info)}
             for info in shorts_info
         ]
+        updated_shorts_info.sort(key=lambda x: x.get("published_at"), reverse=True)
 
         filtered_short_info = [
             info for info in updated_shorts_info
@@ -121,6 +122,14 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
                 print(f"短影片發送到 Discord 頻道失敗")
         else:
             print(f"沒有新短影片")
+            if not short_id_found and updated_shorts_info and latest_short.get("id") is not None:
+                newest_short = updated_shorts_info[0]
+                firebase.set_latest_short_info(
+                    channel_handle=channel.id,
+                    short_id=newest_short.get("id"),
+                    published_at=newest_short.get("published_at")
+                )
+                print(f"{channel_name} 偵測到已儲存的短影片 ID 被刪除，更新最新短影片為: {newest_short.get('id')}")
 
         # ========= 處理影片 =========
 
@@ -129,6 +138,7 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             {**info, "published_at": youtube_crawler.get_video_published_at(info)}
             for info in videos_info
         ]
+        updated_videos_info.sort(key=lambda x: x.get("published_at"), reverse=True)
 
         filtered_video_info = [
             info for info in updated_videos_info
@@ -150,6 +160,14 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
                 print(f"影片發送到 Discord 頻道失敗")
         else:
             print(f"沒有新影片")
+            if not video_id_found and updated_videos_info and latest_video.get("id") is not None:
+                newest_video = updated_videos_info[0]
+                firebase.set_latest_video_info(
+                    channel_handle=channel.id,
+                    video_id=newest_video.get("id"),
+                    published_at=newest_video.get("published_at")
+                )
+                print(f"{channel_name} 偵測到已儲存的影片 ID 被刪除，更新最新影片為: {newest_video.get('id')}")
 
         # ========= 處理直播 =========
 
@@ -158,6 +176,7 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             {**info, "published_at": youtube_crawler.get_video_published_at(info)}
             for info in streams_info
         ]
+        updated_streams_info.sort(key=lambda x: x.get("published_at"), reverse=True)
 
         filtered_stream_info = [
             info for info in updated_streams_info
@@ -179,6 +198,14 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
                 print(f"直播發送到 Discord 頻道失敗")
         else:
             print(f"沒有新直播")
+            if not stream_id_found and updated_streams_info and latest_stream.get("id") is not None:
+                newest_stream = updated_streams_info[0]
+                firebase.set_latest_stream_info(
+                    channel_handle=channel.id,
+                    stream_id=newest_stream.get("id"),
+                    published_at=newest_stream.get("published_at")
+                )
+                print(f"{channel_name} 偵測到已儲存的直播 ID 被刪除，更新最新直播為: {newest_stream.get('id')}")
 
 
 async def main():
