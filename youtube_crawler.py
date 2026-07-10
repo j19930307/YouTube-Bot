@@ -52,8 +52,9 @@ class YouTubeCrawler:
                 if not tabRenderer:
                     continue
 
-                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-                if url.endswith("videos"):
+                url = tabRenderer.get('endpoint', {}).get('commandMetadata', {}).get('webCommandMetadata', {}).get('url', '')
+                path = url.split('?')[0].rstrip('/')
+                if path.endswith("videos"):
                     contents = tabRenderer['content']['richGridRenderer']['contents']
                     for content in contents:
                         richItemRenderer = content.get('richItemRenderer')
@@ -112,8 +113,9 @@ class YouTubeCrawler:
                 if not tabRenderer:
                     continue
 
-                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-                if url.endswith("shorts"):
+                url = tabRenderer.get('endpoint', {}).get('commandMetadata', {}).get('webCommandMetadata', {}).get('url', '')
+                path = url.split('?')[0].rstrip('/')
+                if path.endswith("shorts"):
                     contents = tabRenderer['content']['richGridRenderer']['contents']
 
                     for content in contents:
@@ -174,8 +176,9 @@ class YouTubeCrawler:
                 if not tabRenderer:
                     continue
 
-                url = tabRenderer['endpoint']['commandMetadata']['webCommandMetadata']['url']
-                if url.endswith("streams"):
+                url = tabRenderer.get('endpoint', {}).get('commandMetadata', {}).get('webCommandMetadata', {}).get('url', '')
+                path = url.split('?')[0].rstrip('/')
+                if path.endswith("streams"):
                     contents = tabRenderer['content']['richGridRenderer']['contents']
 
                     for content in contents:
@@ -213,17 +216,28 @@ class YouTubeCrawler:
     # ========= 影片詳細資訊 =========
 
     async def get_videos_info(self, video_ids: list):
+        if not video_ids:
+            return []
 
         url = "https://www.googleapis.com/youtube/v3/videos"
         params = {
             "part": "snippet",
-            "id": ",".join(video_ids),
-            "key": self.api_key
+            "id": ",".join(video_ids)
         }
+        if self.api_key:
+            params["key"] = self.api_key
 
-        async with self.session.get(url, params=params) as response:
-            data = await response.json()
-            return data.get("items", [])
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    print(f"YouTube API 請求失敗，狀態碼: {response.status}。請檢查您的 YOUTUBE_DATA_API_KEY。回應內容: {text}")
+                    return None
+                data = await response.json()
+                return data.get("items", [])
+        except Exception as e:
+            print(f"獲取影片資訊時發生錯誤: {e}")
+            return None
 
     # ========= 發佈時間處理 =========
 
