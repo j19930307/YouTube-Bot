@@ -37,17 +37,22 @@ async def safe_call(coro):
 
 
 async def fetch_all_video_info(youtube_crawler, video_ids):
+    if not video_ids:
+        return []
+
     results = []
+    has_success = False
 
     for batch in chunked(video_ids, YOUTUBE_BATCH_SIZE):
         async with api_semaphore:
             info = await safe_call(
                 youtube_crawler.get_videos_info(video_ids=batch)
             )
-            if info:
+            if info is not None:
+                has_success = True
                 results.extend(info)
 
-    return results
+    return results if has_success else None
 
 
 async def process_channel(channel, youtube_crawler, firebase, discord_bot):
@@ -85,9 +90,13 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
 
         # ========= 取得影片資訊 =========
 
-        all_video_info = await youtube_crawler.get_videos_info(
-            video_ids=all_video_ids
+        all_video_info = await fetch_all_video_info(
+            youtube_crawler, all_video_ids
         )
+
+        if all_video_info is None:
+            print(f"{channel_name} 獲取影片詳細資訊失敗，跳過此頻道處理")
+            return
 
         shorts_info = [info for info in all_video_info if info.get("id") in short_ids]
         videos_info = [info for info in all_video_info if info.get("id") in video_ids]
@@ -115,13 +124,13 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             response = discord_bot.send_message(discord_channel_id=channel.get("discord_channel_id"),
                                                 content=content)
             if response.status_code == 200:
-                print(f"短影片發送到 Discord 頻道成功")
+                print(f"{channel_name} 短影片發送到 Discord 頻道成功")
                 firebase.set_latest_short_info(channel_handle=channel.id, short_id=filtered_short_info[0].get("id"),
                                                published_at=filtered_short_info[0].get("published_at"))
             else:
-                print(f"短影片發送到 Discord 頻道失敗")
+                print(f"{channel_name} 短影片發送到 Discord 頻道失敗")
         else:
-            print(f"沒有新短影片")
+            print(f"{channel_name} 沒有新短影片")
             if not short_id_found and updated_shorts_info and latest_short.get("id"):
                 exists = await youtube_crawler.get_videos_info([latest_short.get("id")])
                 if exists is not None and not exists:
@@ -157,13 +166,13 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             response = discord_bot.send_message(discord_channel_id=channel.get("discord_channel_id"),
                                                 content=content)
             if response.status_code == 200:
-                print(f"影片發送到 Discord 頻道成功")
+                print(f"{channel_name} 影片發送到 Discord 頻道成功")
                 firebase.set_latest_video_info(channel_handle=channel.id, video_id=filtered_video_info[0].get("id"),
                                                published_at=filtered_video_info[0].get("published_at"))
             else:
-                print(f"影片發送到 Discord 頻道失敗")
+                print(f"{channel_name} 影片發送到 Discord 頻道失敗")
         else:
-            print(f"沒有新影片")
+            print(f"{channel_name} 沒有新影片")
             if not video_id_found and updated_videos_info and latest_video.get("id"):
                 exists = await youtube_crawler.get_videos_info([latest_video.get("id")])
                 if exists is not None and not exists:
@@ -199,13 +208,13 @@ async def process_channel(channel, youtube_crawler, firebase, discord_bot):
             response = discord_bot.send_message(discord_channel_id=channel.get("discord_channel_id"),
                                                 content=content)
             if response.status_code == 200:
-                print(f"直播發送到 Discord 頻道成功")
+                print(f"{channel_name} 直播發送到 Discord 頻道成功")
                 firebase.set_latest_stream_info(channel_handle=channel.id, stream_id=filtered_stream_info[0].get("id"),
                                                 published_at=filtered_stream_info[0].get("published_at"))
             else:
-                print(f"直播發送到 Discord 頻道失敗")
+                print(f"{channel_name} 直播發送到 Discord 頻道失敗")
         else:
-            print(f"沒有新直播")
+            print(f"{channel_name} 沒有新直播")
             if not stream_id_found and updated_streams_info and latest_stream.get("id"):
                 exists = await youtube_crawler.get_videos_info([latest_stream.get("id")])
                 if exists is not None and not exists:
