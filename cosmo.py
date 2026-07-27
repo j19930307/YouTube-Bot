@@ -123,6 +123,7 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
                 # 2. 下載所有實體媒體檔案並接在 Embed 後面發送
                 temp_dir = tempfile.mkdtemp()
                 downloaded_files = []
+                oversized_media_urls = []
                 all_media_urls = images + videos
 
                 for m_idx, media_url in enumerate(all_media_urls):
@@ -134,10 +135,15 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
                                 if not filename:
                                     filename = f"media_{m_idx + 1}.jpg"
 
-                                temp_file_path = os.path.join(temp_dir, filename)
-                                with open(temp_file_path, "wb") as f:
-                                    f.write(file_data)
-                                downloaded_files.append(temp_file_path)
+                                # 若檔案大於 25MB (Discord API 上傳限制)，記錄 URL 以連結發送
+                                if len(file_data) > 25 * 1024 * 1024:
+                                    print(f"⚠️ 媒體檔案容量 ({len(file_data) / (1024*1024):.2f}MB) 超過 Discord 25MB 限制，改用 URL 連結發送")
+                                    oversized_media_urls.append(media_url)
+                                else:
+                                    temp_file_path = os.path.join(temp_dir, filename)
+                                    with open(temp_file_path, "wb") as f:
+                                        f.write(file_data)
+                                    downloaded_files.append(temp_file_path)
                     except Exception as e:
                         print(f"下載 Cosmo 媒體檔案失敗 {media_url}: {e}")
 
@@ -152,6 +158,14 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
                                 show_all=False
                             )
                             await asyncio.sleep(1.0)
+
+                    if oversized_media_urls:
+                        links_text = "\n".join([f"{url}" for url in oversized_media_urls])
+                        post_message(
+                            channel_id=discord_channel_id,
+                            content=links_text,
+                            show_all=False
+                        )
                 finally:
                     for fp in downloaded_files:
                         try:
