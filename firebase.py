@@ -48,3 +48,21 @@ class Firebase:
                 "published_at": published_at
             }
         })
+
+    def get_latest_cosmo_room_post_info(self, artist_id: str = "tripleS"):
+        doc_ref = self.__db.collection("Cosmo").document(artist_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            return doc.to_dict().get("latest_room_post", {})
+        return {}
+
+    def set_latest_cosmo_room_post_info(self, artist_id: str, post_id: int, published_at: str, author: str, content: str):
+        doc_ref = self.__db.collection("Cosmo").document(artist_id)
+        doc_ref.set({
+            "latest_room_post": {
+                "id": post_id,
+                "published_at": published_at,
+                "author": author,
+                "content": content
+            }
+        }, merge=True)

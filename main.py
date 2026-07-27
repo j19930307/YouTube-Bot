@@ -1,14 +1,17 @@
 import asyncio
 import os
+import sys
 import time
 from itertools import islice
+
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 import aiohttp
 from dotenv import load_dotenv
 
 from youtube_crawler import YouTubeCrawler
 from discord_bot import DiscordBot
-
 from firebase import Firebase
 
 MAX_CONCURRENT_CHANNEL = 3
@@ -262,4 +265,4 @@ if __name__ == "__main__":
     start_time = time.perf_counter()
     asyncio.run(main())
     end_time = time.perf_counter()
-    print(f"\n全部執行完成，總耗時: {end_time - start_time:.2f} 秒")
+    print(f"\nYouTube 爬蟲全部執行完成，總耗時: {end_time - start_time:.2f} 秒")
