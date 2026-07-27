@@ -46,13 +46,13 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --recurse
 
-      # 安裝 python3-venv 套件
-      - name: Install venv package
+      # 安裝 python3-venv 與 git 套件
+      - name: Install venv and git packages
         run: |
           gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="sudo apt-get update && sudo apt-get install -y python3-venv"
+            --command="sudo apt-get update && sudo apt-get install -y python3-venv git"
 
       # 設定 Python 虛擬環境和依賴
       - name: Set up Python virtual environment and dependencies
