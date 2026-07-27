@@ -113,7 +113,14 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
             else:
                 embeds = build_text_embed(social_post)
 
-                # 下載所有實體媒體檔案並傳送
+                # 1. 先發送文字 Embed 卡片
+                post_message(
+                    channel_id=discord_channel_id,
+                    embeds=embeds,
+                    show_all=False
+                )
+
+                # 2. 下載所有實體媒體檔案並接在 Embed 後面發送
                 temp_dir = tempfile.mkdtemp()
                 downloaded_files = []
                 all_media_urls = images + videos
@@ -139,20 +146,12 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
                         chunk_size = 10
                         for i in range(0, len(downloaded_files), chunk_size):
                             chunk_files = downloaded_files[i:i + chunk_size]
-                            current_embeds = embeds if i == 0 else None
                             post_message(
                                 channel_id=discord_channel_id,
-                                embeds=current_embeds,
                                 file_paths=chunk_files,
                                 show_all=False
                             )
                             await asyncio.sleep(1.0)
-                    else:
-                        post_message(
-                            channel_id=discord_channel_id,
-                            embeds=embeds,
-                            show_all=False
-                        )
                 finally:
                     for fp in downloaded_files:
                         try:
