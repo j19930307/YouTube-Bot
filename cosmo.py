@@ -61,7 +61,7 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
     latest_info = firebase.get_latest_cosmo_room_post_info(artist_id=artist_id)
     latest_saved_id = latest_info.get("id", 0)
 
-    new_posts = [p for p in posts if p.get("id") > latest_saved_id]
+    new_posts = [p for p in posts if p.get("id") > latest_saved_id and p.get("kind") == "post"]
 
     if not new_posts:
         print(f"Cosmo Room Posts ({artist_id}) 沒有新貼文")
