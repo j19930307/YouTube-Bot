@@ -10,7 +10,9 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 import aiohttp
+import requests
 from dotenv import load_dotenv
+
 import sns_core.clients.discord_messages as dm
 from sns_core import build_embeds, build_text_embed
 from sns_core.models import SocialPost, PostAuthor
@@ -21,6 +23,46 @@ from firebase import Firebase
 # 註冊 Cosmo Room 來源圖示與名稱
 dm._SOURCE_MAP["shop.cosmo.fans"] = ("Cosmo Room", "https://static.cosmo.fans/assets/triples-logo.png")
 dm._SOURCE_MAP["cosmo.fans"] = ("Cosmo Room", "https://static.cosmo.fans/assets/triples-logo.png")
+
+
+def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
+    """將 Cosmo 貼文全量 (post & live-clip) 同步/UPSERT 至 Supabase"""
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        return
+
+    url = f"{supabase_url}/rest/v1/room_posts"
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal"
+    }
+
+    batch = []
+    for post in posts:
+        batch.append({
+            "id": post.get("id"),
+            "artist_id": artist_id,
+            "kind": post.get("kind", "post"),
+            "author_name": post.get("author", {}).get("nickname", "Artist"),
+            "author_avatar": post.get("author", {}).get("profileImage", ""),
+            "content": post.get("content", ""),
+            "media": post.get("media", []),
+            "media_aspect_ratio": post.get("mediaAspectRatio", ""),
+            "created_at": post.get("createdAt")
+        })
+
+    try:
+        resp = requests.post(url, headers=headers, json=batch, timeout=15)
+        if resp.status_code in (200, 201, 204):
+            print(f"⚡ 成功同步 {len(batch)} 篇貼文至 Supabase (包含 Live-Clip 與一般貼文)")
+        else:
+            print(f"⚠️ Supabase 同步失敗 Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        print(f"⚠️ 寫入 Supabase 時發生例外: {e}")
 
 
 async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSession):
@@ -58,13 +100,17 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
         print(f"Cosmo Room Posts 沒有資料")
         return
 
+    # 1. 將本輪取得的所有 Room Posts (包含 post 與 live-clip) 同步至 Supabase 資料庫
+    sync_posts_to_supabase(posts, artist_id=artist_id)
+
+    # 2. 檢查是否有需要發送 Discord 通知的「一般貼文 (kind == post)」
     latest_info = firebase.get_latest_cosmo_room_post_info(artist_id=artist_id)
     latest_saved_id = latest_info.get("id", 0)
 
     new_posts = [p for p in posts if p.get("id") > latest_saved_id and p.get("kind") == "post"]
 
     if not new_posts:
-        print(f"Cosmo Room Posts ({artist_id}) 沒有新貼文")
+        print(f"Cosmo Room Posts ({artist_id}) 沒有新貼文通知")
         return
 
     new_posts.sort(key=lambda x: x.get("id"))
