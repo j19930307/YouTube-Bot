@@ -26,7 +26,7 @@ dm._SOURCE_MAP["cosmo.fans"] = ("Cosmo Room", "https://static.cosmo.fans/assets/
 
 
 def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
-    """將 Cosmo 貼文全量 (post & live-clip) 同步/UPSERT 至 Supabase"""
+    """將 Cosmo 貼文全量同步至 Supabase，包含 videoItem.channels 參與成員與 accessType"""
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
 
@@ -43,6 +43,10 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
 
     batch = []
     for post in posts:
+        video_item = post.get("videoItem") or {}
+        channels = video_item.get("channels", [])
+        access_type = video_item.get("accessType", "")
+
         batch.append({
             "id": post.get("id"),
             "artist_id": artist_id,
@@ -51,6 +55,8 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
             "author_avatar": post.get("author", {}).get("profileImage", ""),
             "content": post.get("content", ""),
             "media": post.get("media", []),
+            "channels": channels,
+            "access_type": access_type,
             "media_aspect_ratio": post.get("mediaAspectRatio", ""),
             "created_at": post.get("createdAt")
         })
@@ -58,7 +64,7 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
     try:
         resp = requests.post(url, headers=headers, json=batch, timeout=15)
         if resp.status_code in (200, 201, 204):
-            print(f"⚡ 成功同步 {len(batch)} 篇貼文至 Supabase (包含 Live-Clip 與一般貼文)")
+            print(f"⚡ 成功同步 {len(batch)} 篇貼文至 Supabase (包含 channels 與 accessType)")
         else:
             print(f"⚠️ Supabase 同步失敗 Status {resp.status_code}: {resp.text}")
     except Exception as e:
@@ -100,7 +106,7 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
         print(f"Cosmo Room Posts 沒有資料")
         return
 
-    # 1. 將本輪取得的所有 Room Posts (包含 post 與 live-clip) 同步至 Supabase 資料庫
+    # 1. 將本輪取得的所有 Room Posts 同步至 Supabase
     sync_posts_to_supabase(posts, artist_id=artist_id)
 
     # 2. 檢查是否有需要發送 Discord 通知的「一般貼文 (kind == post)」
@@ -145,7 +151,6 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
             created_at=dt
         )
 
-        # 判斷圖片數量: 若圖片數量 <= 4 且無影片，使用 build_embeds 方法直接嵌入圖片 Embed
         use_build_embeds = (len(images) <= 4 and len(videos) == 0)
 
         try:
@@ -181,7 +186,6 @@ async def process_cosmo_room_posts(firebase: Firebase, session: aiohttp.ClientSe
                                 if not filename:
                                     filename = f"media_{m_idx + 1}.jpg"
 
-                                # 若檔案大於 25MB (Discord API 上傳限制)，記錄 URL 以連結發送
                                 if len(file_data) > 25 * 1024 * 1024:
                                     print(f"⚠️ 媒體檔案容量 ({len(file_data) / (1024*1024):.2f}MB) 超過 Discord 25MB 限制，改用 URL 連結發送")
                                     oversized_media_urls.append(media_url)

@@ -53,9 +53,10 @@ async def fetch_and_sync_all_history():
     skip = 0
     total_synced = 0
     live_clip_count = 0
+    bts_count = 0
     post_count = 0
 
-    print(f"🚀 開始全量同步 Cosmo Room Posts ({artist_id}) 歷史貼文至 Supabase...")
+    print(f"🚀 開始全量同步 Cosmo Room Posts ({artist_id}) 歷史貼文、channels 參與成員與 accessType 至 Supabase...")
 
     headers_cosmo = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -78,7 +79,7 @@ async def fetch_and_sync_all_history():
 
             posts = data.get("posts", [])
             if not posts:
-                print(f"🏁 翻頁完成！已抵達最新/最舊盡頭 (skip={skip})")
+                print(f"🏁 翻頁完成！(skip={skip})")
                 break
 
             batch_to_upsert = []
@@ -92,9 +93,17 @@ async def fetch_and_sync_all_history():
                 created_at = post.get("createdAt")
                 media = post.get("media", [])
                 aspect_ratio = post.get("mediaAspectRatio", "")
+                
+                # 擷取 live-clip 參與的 channels 與 accessType ('connected' vs 'all')
+                video_item = post.get("videoItem") or {}
+                channels = video_item.get("channels", [])
+                access_type = video_item.get("accessType", "")
 
                 if kind == "live-clip":
-                    live_clip_count += 1
+                    if access_type == "all":
+                        bts_count += 1
+                    else:
+                        live_clip_count += 1
                 else:
                     post_count += 1
 
@@ -106,6 +115,8 @@ async def fetch_and_sync_all_history():
                     "author_avatar": author_avatar,
                     "content": content,
                     "media": media,
+                    "channels": channels,
+                    "access_type": access_type,
                     "media_aspect_ratio": aspect_ratio,
                     "created_at": created_at
                 })
@@ -113,12 +124,11 @@ async def fetch_and_sync_all_history():
             success = upsert_to_supabase(batch_to_upsert)
             if success:
                 total_synced += len(batch_to_upsert)
-                print(f"✅ 成功同步 {len(batch_to_upsert)} 篇 (skip={skip}) | 目前累計: {total_synced} 篇 (Live-Clip: {live_clip_count}, Post: {post_count})")
+                print(f"✅ 成功同步 {len(batch_to_upsert)} 篇 (skip={skip}) | 累計: {total_synced} 篇 (正片Live: {live_clip_count}, 幕後花絮: {bts_count}, 貼文: {post_count})")
             else:
                 print(f"⚠️ 跳過當前批次 (skip={skip})")
 
             if len(posts) < take:
-                print(f"🏁 抓取完畢（回傳數量 {len(posts)} 小於 {take}）")
                 break
 
             skip += take
@@ -126,7 +136,8 @@ async def fetch_and_sync_all_history():
 
     print(f"\n🎉 歷史資料全量同步完成！")
     print(f"   總同步數量: {total_synced} 篇")
-    print(f"   🎬 Live-Clip 數量: {live_clip_count} 篇")
+    print(f"   🎬 正片 Live-Clip 數量 (connected): {live_clip_count} 篇")
+    print(f"   🎞️ 幕後花絮 數量 (all): {bts_count} 篇")
     print(f"   📝 一般貼文 數量: {post_count} 篇")
 
 
