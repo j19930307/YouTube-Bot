@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmo Room - Live Clip 成員統計與影音牆</title>
+    <meta name="description" content="tripleS Cosmo Room Live Clip 影音發布統計儀表板與線上影片播放牆">
+    
+    <!-- Google Fonts & Chart.js & Supabase JS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-dark: #0b0d17;
+            --bg-card: rgba(22, 27, 46, 0.7);
+            --bg-card-hover: rgba(33, 40, 68, 0.85);
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+            --accent-gold: #f59e0b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --shadow-neon: 0 0 25px rgba(139, 92, 246, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(236, 72, 153, 0.12) 0%, transparent 40%);
+            background-attachment: fixed;
+            padding-bottom: 60px;
+        }
+
+        /* 頂部 Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            background: rgba(11, 13, 23, 0.8);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 16px 32px;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            box-shadow: var(--shadow-neon);
+        }
+
+        .brand-title h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .stat-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .stat-badge i {
+            color: var(--accent-purple);
+        }
+
+        .stat-badge strong {
+            color: white;
+            font-weight: 700;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 24px;
+        }
+
+        /* 第一區：Top 3 前三名頒獎台 */
+        .podium-section {
+            margin-bottom: 40px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            color: var(--accent-pink);
+        }
+
+        .podium-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .podium-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 28px 24px;
+            text-align: center;
+            position: relative;
+            backdrop-filter: blur(16px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .podium-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: var(--shadow-neon);
+        }
+
+        .podium-card.rank-1 {
+            border-color: rgba(245, 158, 11, 0.5);
+            background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-card) 100%);
+        }
+
+        .podium-card.rank-2 {
+            border-color: rgba(209, 213, 219, 0.4);
+        }
+
+        .podium-card.rank-3 {
+            border-color: rgba(180, 83, 9, 0.4);
+        }
+
+        .rank-crown {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .rank-1 .rank-crown { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .rank-2 .rank-crown { background: linear-gradient(135deg, #9ca3af, #4b5563); }
+        .rank-3 .rank-crown { background: linear-gradient(135deg, #b45309, #78350f); }
+
+        .avatar-wrapper {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            margin: 10px auto 16px;
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--accent-purple);
+        }
+
+        .podium-card.rank-1 .avatar-img { border-color: var(--accent-gold); }
+
+        .member-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .clip-count-num {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .clip-count-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 網格區：圖表與成員快選 */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 992px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+        }
+
+        .member-filter-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .member-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chip:hover, .chip.active {
+            background: var(--accent-purple);
+            color: white;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+        }
+
+        /* 第二區：Live-Clip 影音牆 */
+        .video-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .search-bar {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            padding: 12px 16px 12px 42px;
+            border-radius: 14px;
+            color: white;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar input:focus {
+            border-color: var(--accent-purple);
+        }
+
+        .search-bar i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .type-tabs {
+            display: flex;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            padding: 4px;
+            border-radius: 14px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-purple);
+            color: white;
+        }
+
+        /* 影片牆網格 */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .video-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .video-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(139, 92, 246, 0.5);
+            box-shadow: var(--shadow-neon);
+        }
+
+        .thumbnail-box {
+            position: relative;
+            width: 100%;
+            padding-top: 60%; /* Aspect Ratio */
+            background: #111424;
+            overflow: hidden;
+        }
+
+        .thumbnail-box video, .thumbnail-box img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .video-card:hover .play-overlay {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .play-btn-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
+            transition: transform 0.2s;
+        }
+
+        .video-card:hover .play-btn-circle {
+            transform: scale(1.15);
+        }
+
+        .kind-tag {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(236, 72, 153, 0.9);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .card-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .card-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .author-thumb {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-purple);
+        }
+
+        .author-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .post-date {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .card-text {
+            font-size: 0.9rem;
+            color: #d1d5db;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 影片播放彈窗 Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 7, 15, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+
+        .modal.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #121629;
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 800px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .close-modal:hover {
+            background: rgba(236, 72, 153, 0.8);
+        }
+
+        .modal-video-box {
+            width: 100%;
+            max-height: 480px;
+            background: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-video-box video {
+            width: 100%;
+            max-height: 480px;
+            outline: none;
+        }
+
+        .modal-details {
+            padding: 24px;
+        }
+
+        .modal-author-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .copy-link-btn {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid var(--accent-purple);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-left: auto;
+            transition: all 0.2s;
+        }
+
+        .copy-link-btn:hover {
+            background: var(--accent-purple);
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--accent-purple);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 頂部導航與狀態列 -->
+    <header>
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-logo"><i class="fa-solid fa-play"></i></div>
+                <div class="brand-title">
+                    <h1>Cosmo Live-Clip Analytics</h1>
+                    <p>tripleS Room Posts 發布數據與影音博物館</p>
+                </div>
+            </div>
+
+            <div class="header-stats">
+                <div class="stat-badge">
+                    <i class="fa-solid fa-video"></i>
+                    <span>Live-Clip 總數: <strong id="stat-total-clips">...</strong></span>
+                </div>
+                <div class="stat-badge">
+                    <i class="fa-solid fa-user-group"></i>
+                    <span>參與成員: <strong id="stat-total-members">...</strong></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 前三名 Top 3 頒獎台 -->
+        <section class="podium-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fa-solid fa-trophy"></i> Live-Clip 最活躍成員 Top 3</h2>
+            </div>
+            <div class="podium-grid" id="podium-container">
+                <!-- 動態注入前三名卡片 -->
+            </div>
+        </section>
+
+        <!-- 2. 圖表與成員快速篩選區 -->
+        <div class="analytics-grid">
+            <div class="chart-box">
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fa-solid fa-chart-bar"></i> 成員 Live-Clip 次數排行榜</h2>
+                </div>
+                <canvas id="memberChart" height="220"></canvas>
+            </div>
+
+            <div class="member-filter-box">
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fa-solid fa-filter"></i> 成員快速點擊篩選</h2>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">點擊頭像/標籤可切換查看特定成員的發布紀錄：</p>
+                <div class="member-chips" id="member-chips">
+                    <!-- 動態注入成員晶片 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 影音牆與搜尋控制器 -->
+        <section>
+            <div class="video-controls">
+                <div class="type-tabs">
+                    <button class="tab-btn active" id="tab-live-clip" onclick="switchTab('live-clip')"><i class="fa-solid fa-clapperboard"></i> 僅看 Live-Clip</button>
+                    <button class="tab-btn" id="tab-all" onclick="switchTab('all')"><i class="fa-solid fa-border-all"></i> 全部貼文</button>
+                </div>
+
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="搜尋成員名稱或內文關鍵字..." oninput="handleSearch()">
+                </div>
+            </div>
+
+            <!-- 影片牆卡片網格 -->
+            <div class="video-grid" id="video-grid">
+                <!-- 動態注入影片卡片 -->
+            </div>
+        </section>
+    </div>
+
+    <!-- 4. 影片播放器彈窗 Modal -->
+    <div class="modal" id="video-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="modal-video-box" id="modal-video-container">
+                <!-- 動態注入 <video> 或內容 -->
+            </div>
+
+            <div class="modal-details">
+                <div class="modal-author-row">
+                    <img id="modal-avatar" class="author-thumb" src="" alt="avatar">
+                    <div>
+                        <div class="author-name" id="modal-author-name">成員名稱</div>
+                        <div class="post-date" id="modal-post-date" style="margin-left:0;">發布時間</div>
+                    </div>
+                    <button class="copy-link-btn" onclick="copyVideoLink()"><i class="fa-solid fa-link"></i> 複製影片連結</button>
+                </div>
+
+                <p id="modal-text" style="color: #e5e7eb; line-height: 1.6; font-size: 0.95rem;"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 設定與初始化
+        const SUPABASE_URL = "https://ojjxrqkexcumpapnecjz.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_lA-gW3rOIF7X4hNiUGSCCQ_U_-0wOrv";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allPosts = [];
+        let filteredPosts = [];
+        let currentTab = 'live-clip';
+        let selectedMember = null;
+        let chartInstance = null;
+        let currentVideoUrl = "";
+
+        // 初始化載入資料
+        async function init() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('room_posts')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                allPosts = data || [];
+                
+                renderDashboard();
+            } catch (err) {
+                console.error("載入 Supabase 資料失敗:", err);
+                document.getElementById('video-grid').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <h3>載入資料發生錯誤</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染整體 Dashboard
+        function renderDashboard() {
+            // 1. 篩選目前類型 (Live-Clip 或 全部)
+            let basePosts = allPosts;
+            if (currentTab === 'live-clip') {
+                basePosts = allPosts.filter(p => p.kind === 'live-clip');
+            }
+
+            // 更新統計數字
+            const liveClips = allPosts.filter(p => p.kind === 'live-clip');
+            document.getElementById('stat-total-clips').innerText = liveClips.length + " 篇";
+            
+            const uniqueMembers = [...newSet(liveClips.map(p => p.author_name))];
+            document.getElementById('stat-total-members').innerText = uniqueMembers.length + " 位";
+
+            // 2. 計算成員 Live-Clip 排行榜
+            const memberCounts = {};
+            liveClips.forEach(p => {
+                const name = p.author_name || 'Artist';
+                memberCounts[name] = (memberCounts[name] || 0) + 1;
+            });
+
+            const sortedMembers = Object.entries(memberCounts)
+                .map(([name, count]) => {
+                    const post = liveClips.find(p => p.author_name === name);
+                    return {
+                        name,
+                        count,
+                        avatar: post ? post.author_avatar : ''
+                    };
+                })
+                .sort((a, b) => b.count - a.count);
+
+            // 渲染前三名 Top 3 頒獎台
+            renderPodium(sortedMembers.slice(0, 3));
+
+            // 渲染圖表
+            renderChart(sortedMembers);
+
+            // 渲染成員快速篩選 Chips
+            renderMemberChips(sortedMembers);
+
+            // 渲染影片牆網格
+            applyFilters();
+        }
+
+        // 渲染 Top 3 頒獎台
+        function renderPodium(top3) {
+            const podiumContainer = document.getElementById('podium-container');
+            if (!top3 || top3.length === 0) {
+                podiumContainer.innerHTML = '';
+                return;
+            }
+
+            const ranks = [1, 2, 3];
+            podiumContainer.innerHTML = top3.map((m, idx) => `
+                <div class="podium-card rank-${idx + 1}" onclick="filterByMember('${m.name}')">
+                    <div class="rank-crown">${idx + 1}</div>
+                    <div class="avatar-wrapper">
+                        <img class="avatar-img" src="${m.avatar || 'https://via.placeholder.com/90'}" alt="${m.name}" onerror="this.src='https://via.placeholder.com/90'">
+                    </div>
+                    <div class="member-name">${m.name}</div>
+                    <div class="clip-count-num">${m.count}</div>
+                    <div class="clip-count-label">Live Clips</div>
+                </div>
+            `).join('');
+        }
+
+        // 渲染 Chart.js 柱狀圖
+        function renderChart(sortedMembers) {
+            const ctx = document.getElementById('memberChart').getContext('2d');
+            
+            const labels = sortedMembers.map(m => m.name);
+            const data = sortedMembers.map(m => m.count);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, '#8b5cf6');
+            gradient.addColorStop(1, '#ec4899');
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Live-Clip 數量',
+                        data: data,
+                        backgroundColor: gradient,
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 渲染成員晶片按鈕
+        function renderMemberChips(sortedMembers) {
+            const container = document.getElementById('member-chips');
+            let html = `
+                <div class="chip ${selectedMember === null ? 'active' : ''}" onclick="filterByMember(null)">
+                    全部成員
+                </div>
+            `;
+
+            html += sortedMembers.map(m => `
+                <div class="chip ${selectedMember === m.name ? 'active' : ''}" onclick="filterByMember('${m.name}')">
+                    ${m.name} (${m.count})
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // 篩選與搜尋應用
+        function applyFilters() {
+            const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+
+            filteredPosts = allPosts.filter(p => {
+                // Tab 條件
+                if (currentTab === 'live-clip' && p.kind !== 'live-clip') return false;
+                
+                // 成員條件
+                if (selectedMember && p.author_name !== selectedMember) return false;
+
+                // 關鍵字搜尋
+                if (keyword) {
+                    const nameMatch = (p.author_name || '').toLowerCase().includes(keyword);
+                    const textMatch = (p.content || '').toLowerCase().includes(keyword);
+                    return nameMatch || textMatch;
+                }
+
+                return true;
+            });
+
+            renderVideoGrid(filteredPosts);
+        }
+
+        // 渲染影片卡片牆
+        function renderVideoGrid(posts) {
+            const grid = document.getElementById('video-grid');
+
+            if (!posts || posts.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-film"></i>
+                        <h3>沒有找到符合條件的貼文</h3>
+                        <p>嘗試切換分類或更換搜尋關鍵字</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = posts.map(post => {
+                const videoMedia = (post.media || []).find(m => m.kind === 'video') || (post.media || [])[0];
+                const videoUrl = videoMedia ? videoMedia.url : '';
+                const dateStr = post.created_at ? new Date(post.created_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+                return `
+                    <div class="video-card" onclick="openModal(${post.id})">
+                        <div class="thumbnail-box">
+                            ${videoUrl ? `
+                                <video src="${videoUrl}#t=0.5" preload="metadata"></video>
+                                <div class="play-overlay">
+                                    <div class="play-btn-circle"><i class="fa-solid fa-play"></i></div>
+                                </div>
+                            ` : `
+                                <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">
+                                    <i class="fa-solid fa-align-left" style="font-size:32px;"></i>
+                                </div>
+                            `}
+                            <span class="kind-tag" style="${post.kind === 'live-clip' ? 'background:var(--accent-pink)' : 'background:var(--accent-purple)'}">${post.kind}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-author">
+                                <img class="author-thumb" src="${post.author_avatar || 'https://via.placeholder.com/34'}" alt="${post.author_name}" onerror="this.src='https://via.placeholder.com/34'">
+                                <span class="author-name">${post.author_name}</span>
+                                <span class="post-date">${dateStr}</span>
+                            </div>
+                            <p class="card-text">${post.content || '無文字內容'}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 切換 Tab (Live-Clip vs 全部)
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-live-clip').classList.toggle('active', tab === 'live-clip');
+            document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+            applyFilters();
+        }
+
+        // 切換成員篩選
+        function filterByMember(memberName) {
+            selectedMember = memberName;
+            renderDashboard();
+        }
+
+        // 搜尋監聽
+        function handleSearch() {
+            applyFilters();
+        }
+
+        // 開啟 Modal 播放影片
+        function openModal(postId) {
+            const post = allPosts.find(p => p.id === postId);
+            if (!post) return;
+
+            const modal = document.getElementById('video-modal');
+            const videoContainer = document.getElementById('modal-video-container');
+            const videoMedia = (post.media || []).find(m => m.kind === 'video') || (post.media || [])[0];
+
+            currentVideoUrl = videoMedia ? videoMedia.url : '';
+
+            if (currentVideoUrl) {
+                videoContainer.innerHTML = `<video src="${currentVideoUrl}" controls autoplay></video>`;
+            } else {
+                videoContainer.innerHTML = `<div style="padding:40px;color:var(--text-muted);"><i class="fa-solid fa-file-lines" style="font-size:48px;"></i><p style="margin-top:12px;">此貼文無影片媒體</p></div>`;
+            }
+
+            document.getElementById('modal-avatar').src = post.author_avatar || 'https://via.placeholder.com/34';
+            document.getElementById('modal-author-name').innerText = post.author_name;
+            document.getElementById('modal-post-date').innerText = post.created_at ? new Date(post.created_at).toLocaleString('zh-TW') : '';
+            document.getElementById('modal-text').innerText = post.content || '無文字內容';
+
+            modal.classList.add('open');
+        }
+
+        // 關閉 Modal
+        function closeModal() {
+            const modal = document.getElementById('video-modal');
+            const videoContainer = document.getElementById('modal-video-container');
+            videoContainer.innerHTML = '';
+            modal.classList.remove('open');
+        }
+
+        // 複製影片網址
+        function copyVideoLink() {
+            if (!currentVideoUrl) return;
+            navigator.clipboard.writeText(currentVideoUrl).then(() => {
+                alert("已複製影片網址至剪貼簿！");
+            });
+        }
+
+        // 啟動專案
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
