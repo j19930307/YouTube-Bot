@@ -26,7 +26,7 @@ dm._SOURCE_MAP["cosmo.fans"] = ("Cosmo Room", "https://static.cosmo.fans/assets/
 
 
 def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
-    """將 Cosmo 貼文全量同步至 Supabase，包含 videoItem.channels 參與成員與 accessType"""
+    """將 Cosmo 貼文全量同步至 Supabase，包含 videoItem.channels、accessType 與 duration"""
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
 
@@ -46,6 +46,7 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
         video_item = post.get("videoItem") or {}
         channels = video_item.get("channels", [])
         access_type = video_item.get("accessType", "")
+        duration = video_item.get("duration", 0)
 
         batch.append({
             "id": post.get("id"),
@@ -57,6 +58,7 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
             "media": post.get("media", []),
             "channels": channels,
             "access_type": access_type,
+            "duration": duration,
             "media_aspect_ratio": post.get("mediaAspectRatio", ""),
             "created_at": post.get("createdAt")
         })
@@ -64,7 +66,7 @@ def sync_posts_to_supabase(posts: list[dict], artist_id: str = "tripleS"):
     try:
         resp = requests.post(url, headers=headers, json=batch, timeout=15)
         if resp.status_code in (200, 201, 204):
-            print(f"⚡ 成功同步 {len(batch)} 篇貼文至 Supabase (包含 channels 與 accessType)")
+            print(f"⚡ 成功同步 {len(batch)} 篇貼文至 Supabase (包含 duration 秒數)")
         else:
             print(f"⚠️ Supabase 同步失敗 Status {resp.status_code}: {resp.text}")
     except Exception as e:
