@@ -56,7 +56,7 @@ async def fetch_and_sync_all_history():
     bts_count = 0
     post_count = 0
 
-    print(f"🚀 開始全量同步 Cosmo Room Posts ({artist_id}) 歷史貼文、channels、accessType 與 duration 直播時長...")
+    print(f"🚀 開始全量同步 Cosmo Room Posts ({artist_id}) 歷史貼文（包含 channels, accessType, duration 與 raw_data）至 Supabase...")
 
     headers_cosmo = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -119,6 +119,7 @@ async def fetch_and_sync_all_history():
                     "channels": channels,
                     "access_type": access_type,
                     "duration": duration,
+                    "raw_data": post,
                     "media_aspect_ratio": aspect_ratio,
                     "created_at": created_at
                 })
