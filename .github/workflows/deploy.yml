@@ -60,12 +60,12 @@ jobs:
           gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="cd ~/my-app && [ -d venv ] || python3 -m venv venv"
+            --command="cd ~/my-app && rm -rf venv && python3 -m venv venv"
 
           gcloud compute ssh ${{ env.GCE_USERNAME }}@${{ env.GCE_INSTANCE_NAME }} \
             --zone=${{ env.GCE_INSTANCE_ZONE }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --command="cd ~/my-app && ./venv/bin/pip install -r requirements.txt"
+            --command="cd ~/my-app && ./venv/bin/pip install --upgrade pip setuptools wheel && ./venv/bin/pip install --no-cache-dir -r requirements.txt"
 
       # 設定 Crontab 任務 (YouTube 每 3 分鐘，Cosmo Room 每 5 分鐘)
       - name: Set up cron job to run with virtual environment
